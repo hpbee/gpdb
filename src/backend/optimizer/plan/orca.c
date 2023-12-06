@@ -339,7 +339,7 @@ remove_redundant_results_mutator(Node *node, void *ctx)
 				// const.consttypmod value needs to be fixed before replacing var with const.
 				if (IsA(tle->expr, Var) && IsA(child_expr, Const))
 				{
-					((Const *)child_expr)->consttypmod = ((Var *)tle->expr)->vartypmod;
+					((Const *) child_expr)->consttypmod = ((Var *) tle->expr)->vartypmod;
 				}
 				tle->expr = child_expr;
 			}
