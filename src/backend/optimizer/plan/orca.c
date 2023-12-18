@@ -332,16 +332,8 @@ remove_redundant_results_mutator(Node *node, void *ctx)
 			{
 				TargetEntry *tle = (TargetEntry *) lfirst(lc);
 
-				Expr *child_expr = (Expr *) push_down_expr_mutator((Node *) tle->expr, 
+                                tle->expr = (Expr *) push_down_expr_mutator((Node *) tle->expr,
 																	child_plan->targetlist);
-				// When a const expr is created from a var,
-				// const.consttypmod is set as default value instead of var.vartypmod.
-				// const.consttypmod value needs to be fixed before replacing var with const.
-				if (IsA(tle->expr, Var) && IsA(child_expr, Const))
-				{
-					((Const *) child_expr)->consttypmod = ((Var *) tle->expr)->vartypmod;
-				}
-				tle->expr = child_expr;
 			}
 
 			child_plan->targetlist = tlist;
@@ -418,6 +410,15 @@ push_down_expr_mutator(Node *node, List *child_tlist)
 		{
 			TargetEntry *child_tle = (TargetEntry *)
 				list_nth(child_tlist, var->varattno - 1);
+			// The const expr pertatining to a column in a child result node
+			// has const.consttypmod set as default value.
+			// correct typmod can be found at var.vartypmod.
+			// const.consttypmod value needs to be fixed before replacing var with const.
+			if (IsA(child_tle->expr, Const))
+			{
+				((Const *) child_tle->expr)->consttypmod = ((Var *) node)->vartypmod;
+			}
+
 			return (Node *) child_tle->expr;
 		}
 	}
