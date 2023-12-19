@@ -332,8 +332,8 @@ remove_redundant_results_mutator(Node *node, void *ctx)
 			{
 				TargetEntry *tle = (TargetEntry *) lfirst(lc);
 
-                                tle->expr = (Expr *) push_down_expr_mutator((Node *) tle->expr,
-																	child_plan->targetlist);
+				tle->expr = (Expr *) push_down_expr_mutator((Node *) tle->expr,
+															child_plan->targetlist);
 			}
 
 			child_plan->targetlist = tlist;
