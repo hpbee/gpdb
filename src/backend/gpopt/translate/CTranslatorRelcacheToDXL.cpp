@@ -918,6 +918,19 @@ CTranslatorRelcacheToDXL::AddSystemColumns(CMemoryPool *mp,
 
 		const FormData_pg_attribute *att_tup = SystemAttributeDefinition(attno);
 
+		// pg_attribute is not storing xmin, cmin, xmax, cmax column entries for AO tables
+		IMDRelation::Erelstoragetype rel_storage_type =
+			RetrieveRelStorageType(rel);
+		if ((attno == MinTransactionIdAttributeNumber ||
+			 attno == MinCommandIdAttributeNumber ||
+			 attno == MaxTransactionIdAttributeNumber ||
+			 attno == MaxCommandIdAttributeNumber) &&
+			(IMDRelation::ErelstorageAppendOnlyRows == rel_storage_type ||
+			 IMDRelation::ErelstorageAppendOnlyCols == rel_storage_type))
+		{
+			continue;
+		}
+
 		// get system name for that attribute
 		const CWStringConst *sys_colname = GPOS_NEW(mp)
 			CWStringConst(CDXLUtils::CreateDynamicStringFromCharArray(
