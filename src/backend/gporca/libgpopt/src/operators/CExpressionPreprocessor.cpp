@@ -2971,6 +2971,8 @@ CExpressionPreprocessor::PcnstrFromChildPartition(
 		return nullptr;
 	}
 
+	CColRefArray *pdrgpcrOutputNoSysCols = GPOS_NEW(mp) CColRefArray(mp);
+
 	// Create a list of indexes into the columns of the table descriptor of the
 	// child partition. This is used in PexprTranslateScalar() to construct a
 	// reverse mapping from the colid of  each (non-dropped) column in the child
@@ -2982,14 +2984,24 @@ CExpressionPreprocessor::PcnstrFromChildPartition(
 	for (ULONG ul = 0; ul < pdrgpcrOutput->Size(); ++ul)
 	{
 		CColRef *colref = (*pdrgpcrOutput)[ul];
+		// System columns of root table don't need to be mapped to partition columns
+		// Since partition constraints can not be defined on system columns
+		// In case it's needed to map system columns, it should be considered that
+		// when root table is of storage type heap and partition is ao,
+		// partition may not contain some special system columns (cmin, xmin, cmax, xmax)
+		if (colref->IsSystemCol())
+		{
+			continue;
+		}
 		ULONG *colid = root_col_mapping->Find(colref);
 		GPOS_ASSERT(nullptr != colid);
 		mapped_colids->Append(GPOS_NEW(mp) ULONG(*colid));
+		pdrgpcrOutputNoSysCols->Append(colref);
 	}
 
 	CTranslatorDXLToExpr dxltr(mp, md_accessor);
-	part_constraint_expr =
-		dxltr.PexprTranslateScalar(dxlnode, pdrgpcrOutput, mapped_colids);
+	part_constraint_expr = dxltr.PexprTranslateScalar(
+		dxlnode, pdrgpcrOutputNoSysCols, mapped_colids);
 	mapped_colids->Release();
 
 	GPOS_ASSERT(CUtils::FPredicate(part_constraint_expr));
@@ -3003,6 +3015,7 @@ CExpressionPreprocessor::PcnstrFromChildPartition(
 		IMDIndex::EmdindBtree);
 	CRefCount::SafeRelease(part_constraint_expr);
 	CRefCount::SafeRelease(pdrgpcrsChild);
+	CRefCount::SafeRelease(pdrgpcrOutputNoSysCols);
 	GPOS_ASSERT(cnstr);
 	return cnstr;
 }
