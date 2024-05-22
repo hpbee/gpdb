@@ -925,8 +925,8 @@ CTranslatorRelcacheToDXL::AddSystemColumns(CMemoryPool *mp,
 			 attno == MinCommandIdAttributeNumber ||
 			 attno == MaxTransactionIdAttributeNumber ||
 			 attno == MaxCommandIdAttributeNumber) &&
-			(IMDRelation::ErelstorageAppendOnlyRows == rel_storage_type ||
-			 IMDRelation::ErelstorageAppendOnlyCols == rel_storage_type))
+			(rel_storage_type == IMDRelation::ErelstorageAppendOnlyRows ||
+			 rel_storage_type == IMDRelation::ErelstorageAppendOnlyCols))
 		{
 			continue;
 		}
