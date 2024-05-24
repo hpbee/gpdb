@@ -283,3 +283,41 @@ create table minirepro_foo(a int, b int);
 
 -- Cleanup
 drop table minirepro_foo;
+
+--------------------------------------------------------------------------------
+-- Scenario: Test if minirepro reports appropriate message if 
+--           some tables are not analyzed atleast once
+--------------------------------------------------------------------------------
+create table minirepro_foo(a int, b int) DISTRIBUTED RANDOMLY;
+create table minirepro_parted(a int, b int) partition by list(a) DISTRIBUTED RANDOMLY;
+create table minirepro_parted_0 partition of minirepro_parted for values in (0);
+create table minirepro_parted_1 partition of minirepro_parted for values in (1);
+create table minirepro_parted_2 partition of minirepro_parted for values in (2);
+insert into minirepro_parted values(1,1);
+ANALYZE minirepro_parted_1, minirepro_foo;
+
+-- start_ignore
+\! echo "select * from minirepro_parted p JOIN minirepro_foo f ON f.a=p.a;" > ./data/minirepro_q.sql
+\! minirepro regression -q data/minirepro_q.sql -f data/minirepro.sql
+-- end_ignore
+
+-- Validate if appropriate message is reported if some tables are not analyzed atleast once
+\! grep -E 'Tables not analyzed atleast once|ANALYZE |All tables are analyzed' data/minirepro.sql
+
+--------------------------------------------------------------------------------
+-- Scenario: Test if minirepro reports appropriate message if 
+--           all tables are analyzed
+--------------------------------------------------------------------------------
+ANALYZE minirepro_parted;
+
+-- start_ignore
+\! echo "select * from minirepro_parted p JOIN minirepro_foo f ON f.a=p.a;" > ./data/minirepro_q.sql
+\! minirepro regression -q data/minirepro_q.sql -f data/minirepro.sql
+-- end_ignore
+
+-- Validate if appropriate message is reported if all tables are analyzed
+\! grep -E 'Tables not analyzed atleast once|ANALYZE |All tables are analyzed' data/minirepro.sql
+
+-- Cleanup
+drop table minirepro_foo;
+drop table minirepro_parted cascade;

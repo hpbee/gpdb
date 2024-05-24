@@ -306,6 +306,18 @@ def get_non_default_optimization_gucs(cursor):
     vals = cursor.fetchall()
     return vals
 
+def get_non_analyzed_tables(cursor, oid_str):
+    result = []
+    not_analyzed_query = 'SELECT relid::regclass as relname, relid FROM pg_stat_all_tables WHERE analyze_count = 0 AND relid IN (%s)' % oid_str
+    try:
+        cursor.execute(not_analyzed_query)
+    except psycopg2.DatabaseError as e:
+        sys.stderr.write('\nError while trying to retrieve relations which were not analyzed.\n\n' + str(e) + '\n\n')
+        sys.exit(1)
+    for vals in result_iter(cursor):
+        result.append(vals[0])
+    return result
+
 def main():
     parser = parse_cmd_line()
     options, args = parser.parse_args()
@@ -430,6 +442,9 @@ def main():
     print("Writing correlated statistics ...")
     dump_extstats(cursor, mr_query.relids, f_out)
 
+    # Find relations which aren't analyzed
+    non_analyzed_rels = get_non_analyzed_tables(cursor, mr_query.relids)
+
     cursor.close()
     conn.close()
 
@@ -455,6 +470,17 @@ def main():
     with open(query_file, 'r') as query_f:
         for line in query_f:
             f_out.writelines('-- ' + line)
+
+    print("Writing non analyzed tables ...")
+    f_out.writelines(['\n\n-- ',
+                      '\n-- Tables not analyzed atleast once',
+                      '\n-- \n'
+                      ])
+    if len(non_analyzed_rels) == 0:
+        f_out.writelines('-- All tables are analyzed')
+    else:
+        f_out.writelines('-- ANALYZE {0};'.format(', '.join(non_analyzed_rels)))
+    f_out.writelines('\n-- \n')
 
     f_out.writelines('\n-- MiniRepro completed.\n')
     f_out.close()
